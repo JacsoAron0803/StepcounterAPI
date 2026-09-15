@@ -12,6 +12,7 @@ var pool = mysql.createPool({
     database: 'stepcounter'
 });
 app.use(express.urlencoded({extended: true}))
+app.use(express.json());
 app.get('/', (_req,res)=>{
     res.send(`Welcome to stepcounter API!`)
 })
@@ -29,7 +30,7 @@ app.post('/users/register', (req, res)=> {
     if(passwd !== confirm){
         return res.status(400).json({error:'Passwords do not match'})
     }
-    //check password strength
+    //TODO: check password strength
 
 
     //check if email already exists
@@ -53,7 +54,50 @@ app.post('/users/register', (req, res)=> {
 
 })
 //login
+app.post('/users/login', (req, res)=>{
+    const {email, passwd} = req.body;
 
+    //VALIDATION    
+
+    //check for missing fields
+    if (!email || !passwd){
+        return res.status(400).json({error: 'Missing fields'});
+    }
+    // check email and passwd exists
+    pool.query('SELECT * FROM users WHERE email=? AND password=SHA1(?)',[email, passwd],(error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        //if there isn't a user with that passwd and email
+        if (results.length == 0){
+            return res.status(400).json({error:'Invalid credentials!'});
+        }
+        // if there is a user with that email and passwd
+        
+        //TODO:check if user is active
+        if(results[0].is_active==0){
+            return res.status(400).json({error: 'This account is banned by an admin!'})
+        }
+       
+        const loggedUser= {
+            ID: results[0].ID,
+            name: results[0].name,
+            email: results[0].email,
+            role: results[0].role
+        };
+
+        pool.query('UPDATE users SET last_login=CURRENT_TIMESTAMP, login_count=login_count+1 WHERE ID=?', [results[0].ID], (error, resutls)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'});
+        }
+        //TODO: send logged user data to frontend
+        res.status(200).json({message: 'You logged in succesfully!',loggedUser});
+        })
+        
+        
+    });
+});
 //logout
 
 //password change
@@ -89,7 +133,7 @@ app.get('/admin/users', (req,res)=>{
 
 //deny user
 
-//statistics (total steps, avarage steő)
+//statistics (total steps, avarage step)
 
 app.listen(port, ()=>{
     console.log(`Server is running on http://localhost:${port}`)
