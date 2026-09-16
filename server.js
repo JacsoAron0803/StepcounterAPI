@@ -1,4 +1,5 @@
 const express = require('express');
+var cors = require('cors');
 const mysql = require('mysql');
 var sha1 = require('sha1');
 
@@ -12,6 +13,7 @@ var pool = mysql.createPool({
     port:'3307',
     database: 'stepcounter'
 });
+app.use(cors()); //::::acces control allow origin
 app.use(express.urlencoded({extended: true}))
 app.use(express.json());
 app.get('/', (_req,res)=>{
