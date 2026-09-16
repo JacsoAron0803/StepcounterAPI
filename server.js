@@ -1,5 +1,6 @@
 const express = require('express');
 const mysql = require('mysql');
+var sha1 = require('sha1');
 
 const app = express();
 const port = 3000;
@@ -75,7 +76,7 @@ app.post('/users/login', (req, res)=>{
         }
         // if there is a user with that email and passwd
         
-        //TODO:check if user is active
+
         if(results[0].is_active==0){
             return res.status(400).json({error: 'This account is banned by an admin!'})
         }
@@ -98,10 +99,60 @@ app.post('/users/login', (req, res)=>{
         
     });
 });
-//logout
+//logout ---- nem lesz ra backend endpoint
 
 //password change
+app.post('/users/:uid/passmod', (req, res)=>{
+    const {oldpass, newpass, confirm, userID} = req.body; //frontendből átvesszük az adatokat
+    const uid = req.params.uid; // kiolvassuk az urlbol a user ID-t
 
+    //megnezzuk hogy minden kotelezo mezot megadott e
+    if (!oldpass || !newpass || !confirm){
+        return res.status(400).json({error: 'Missing required fields!'});
+    }
+
+    //osszehasonlitjuk az uj jelszavakat
+    if (newpass != confirm){
+        return res.status(400).json({error:'The new password and it\'s confirm does not match!'});
+    }
+
+    // megnezzuk hogy az uj megegyezik e a regivel
+    if (oldpass == newpass){
+        return res.status(400).json({error: 'The new password is the same as the old password!'})
+    }
+    //TODO: new password strength check with regular expression
+
+
+    //megnezzuk hogy a megadott regi jelszo stimmel e
+    pool.query('SELECT password FROM users WHERE ID=?', [uid], (error,results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        // ha nincs ilyen idju user
+        if (results.length ==0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+            //hasheljuk a megadott jelenlegi jelszot hogy ossze tudjuk hasonlitani az adatbazisban levovel
+        const oldpassHash = sha1(oldpass);
+
+
+        // ha nem stimmel a megadott regi jelszo
+        if (results[0].password != oldpassHash){
+            return res.status(400).json({error: 'The old password is not correct!'});
+        }
+
+        //update password
+
+        pool.query('UPDATE users SET password=SHA1(?) WHERE ID=?', [newpass, uid], (error, results)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'});
+            }
+
+            return res.status(200).json({message: 'The password has been modified succesfully!'});
+        });
+    });
+});
 //get profile
 
 //update profile
