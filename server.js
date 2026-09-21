@@ -157,9 +157,62 @@ app.post('/users/:uid/passmod', (req, res)=>{
 });
 //get profile
 
+app.get('/users/:uid', (req, res)=>{
+    const uid = req.params.uid;
+
+    if (!uid){
+        return res.status(400).json({error: 'Missing user ID!'});
+    }
+
+    pool.query('SELECT * FROM users WHERE ID=?', [uid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        // ha nincs ilyen idju user a tablaban
+        if (results.length == 0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+
+        let user = {
+            ID: results[0].ID,
+            name: results[0].name,
+            email: results[0].email,
+            role: results[0].role,
+            created_at: results[0].created_at,
+        }
+
+        // ha van ilyen idju user
+        return res.status(200).json({results: user});
+    })
+});
 //update profile
 
 //delete profile
+
+app.delete('/users/:uid', (req, res)=>{
+    const uid = req.params.uid;
+    const loggedUserID = req.body.luid; // a bejelentkezett user ID-ját a frontend küldi át
+
+    if (!uid || !loggedUserID){
+        return res.status(400).json({error: 'Missing user ID!'});
+    }
+
+    if (uid != loggedUserID){
+        return res.status(400).json({error: 'You are not authorized to delete this profile!'});
+    }
+
+    pool.query('DELETE FROM users WHERE ID=?', [uid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+        if (results.affectedRows == 1){
+            return res.status(200).json({message: 'Profile deleted succesfully!'});
+        }
+        return res.status(200).json({message: 'No action occurred!'});
+
+    })
+});
 //STEPS ENDPOINTS ---------------------------
 
 //create step
