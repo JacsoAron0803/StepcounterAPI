@@ -11,7 +11,8 @@ var pool = mysql.createPool({
     user: 'root',
     password: '',
     port:'3307',
-    database: 'stepcounter'
+    database: 'stepcounter',
+    timezone: 'Europe/Budapest'
 });
 app.use(cors()); //::::acces control allow origin
 app.use(express.urlencoded({extended: true}))
@@ -93,6 +94,7 @@ app.post('/users/login', (req, res)=>{
         pool.query('UPDATE users SET last_login=CURRENT_TIMESTAMP, login_count=login_count+1 WHERE ID=?', [results[0].ID], (error, resutls)=>{
             if (error){
                 return res.status(500).json({error: 'Database query error'});
+            
         }
         //TODO: send logged user data to frontend
         res.status(200).json({message: 'You logged in succesfully!',loggedUser});
@@ -155,6 +157,7 @@ app.post('/users/:uid/passmod', (req, res)=>{
         });
     });
 });
+
 //get profile
 
 app.get('/users/:uid', (req, res)=>{
@@ -186,8 +189,51 @@ app.get('/users/:uid', (req, res)=>{
         return res.status(200).json({results: user});
     })
 });
-//update profile
+//update profile (username, email)
+app.patch('/users/:uid', (req, res)=>{
+    const uid = req.params.uid;
+    const {username,email, luid } = req.body;
 
+    if (!uid || !username || !email || !luid){
+        return res.status(400).json({error: 'Missing required fields!'});
+    }
+
+    if (uid != luid){
+        return res.status(400).json({error: 'You are not authorized to update this profile!'});
+    }
+
+    pool.query('SELECT * FROM users WHERE ID=?', [uid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        if (results.length ==0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+        //ha ugyanazok az adatok mint az adatbazisban, akkor nem csinalunk semmit
+        if (username == results[0].name && email == results[0].email){
+            return res.status(400).json({error: 'No changes detected!'});
+        }
+
+        pool.query('SELECT * FROM users WHERE email=? AND ID!=?', [email, uid], (error, results2)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'});
+            }
+
+            if (results2.length > 0){
+                return res.status(400).json({error: 'This email is already in use!'});
+            }
+
+            pool.query('UPDATE users SET name =?, updated_at = CURRENT_TIMESTAMP, email=? WHERE ID =?', [username, email, uid], (error, results3)=>{
+                if (error){
+                    return res.status(500).json({error: 'Database query error'});
+                }
+                return res.status(200).json({message: 'Profile updated succesfully!'});
+            })
+        })
+    });
+
+});
 //delete profile
 
 app.delete('/users/:uid', (req, res)=>{
@@ -226,18 +272,76 @@ app.delete('/users/:uid', (req, res)=>{
 //ADMIN ENDPOINTS ---------------------------
 
 //get all users
-app.get('/admin/users', (req,res)=>{
-    pool.query('SELECT * FROM users', (error, results)=> {
+app.post('/admin/users', (req,res)=>{
+    const luid = req.body.luid;
+
+    if (!luid){
+        return res.status(400).json({error: 'Missing user ID!'});
+    }
+
+    pool.query('SELECT * FROM users WHERE ID=?', [luid], (error, results1)=>{
         if (error){
-            res.status(500).json({ 'Database query error: ': error});
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        if (results1.length == 0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+
+        if (results1[0].role != 'admin'){
+            return res.status(400).json({error: 'You are not authorized to perform this action!'});
+        }
+
+        pool.query('SELECT * FROM users', (error, results)=> {
+        if (error){
+           return res.status(500).json({return: 'Database query error: '});
         }
         else{
-            res.status(200).json(results)
+            return res.status(200).json(results)
         }
     })
+    });
 })
 
 //deny user
+app.patch('/admin/status', (req,res)=>{
+    const {uid, luid} = req.body;
+    
+    if (!uid || !luid){
+        return res.status(400).json({error: 'Missing user ID!'});
+    }
+    pool.query('SELECT * FROM users WHERE ID=?', [luid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        if (results.length == 0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+
+        if (results[0].role != 'admin'){
+            return res.status(400).json({error: 'You are not authorized to perform this action!'});
+        };
+        pool.query('SELECT * FROM users WHERE ID=?', [uid], (error, results)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'});
+            }
+
+            if (results.length == 0){
+                return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+            }
+
+            pool.query('UPDATE users SET is_active = not is_active WHERE ID =?', [uid], (error, results2)=>{
+                if (error){
+                    return res.status(500).json({error: 'Database query error'});
+            }
+
+                return res.status(200).json({message: 'User status updated succesfully!'});
+            })
+        })
+    })
+});
+    
 
 //statistics (total steps, avarage step)
 
