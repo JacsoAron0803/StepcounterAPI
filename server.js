@@ -262,13 +262,99 @@ app.delete('/users/:uid', (req, res)=>{
 //STEPS ENDPOINTS ---------------------------
 
 //create step
+app.post('/steps', (req, res)=>{
+    const {steps, luid, date} = req.body;
+    const today = new Date().toLocaleDateString('hu-HU');
 
+    if (!steps || !luid){
+        return res.status(400).json({error: 'Missing required fields!'});
+    }
+
+    pool.query('SELECT * FROM users WHERE ID=?', [luid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'})
+        }
+
+        if (results.length == 0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+        
+        pool.query('SELECT * FROM steps WHERE user_id=? AND DATE(date)=?', [luid, date], (error, results)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'})
+            }
+            if (results.length > 0){
+                return res.status(400).json({error: 'Step data for this date already exists!'});
+            }
+            pool.query('INSERT INTO steps (user_id, step_count, date) VALUES (?, ?, CURRENT_TIMESTAMP)', [luid, steps], (error, results)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'})
+            }
+
+            if (steps < 0){
+                return res.status(400).json({error: 'Step count cannot be negative!'});
+            }
+            
+            return res.status(201).json({message: 'Step data added succesfully!'});
+        })
+        })
+        
+    })
+});
 //get steps (user)
+app.get('/steps/:uid', (req, res)=>{
+    const uid = req.params.uid;
+    const luid = req.body.luid;
+    if (!uid){
+        return res.status(400).json({error: 'Missing user ID!'});
+    }
+    if (uid != luid){
+        return res.status(400).json({error: 'You are not authorized to view this user\'s steps!'});
+    }
 
+    pool.query('SELECT * FROM steps WHERE user_id=? ORDER BY date DESC', [uid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+        if (results.length == 0){
+            return res.status(200).json({message: 'No steps found for this user!'});
+        }
+        return res.status(200).json(results);
+    })
+})
 //update steps
+app.patch('/steps/:uid/:stepID', (req, res)=>{
+    const luid = req.body.luid;
+    const uid = req.params.uid;
+    const stepID = req.params.stepID;
 
+    if (!luid || !uid || !stepID){
+        return res.status(400).json({error: 'Missing required fields!'});
+    }
+    if (uid !=luid){
+        return res.status(400).json({error: 'You are not authorized to update this user\'s steps!'});
+    }
+
+    pool.query('SELECT * FROM steps WHERE ID=? AND user_id=?', [stepID, uid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+        if (results.length == 0){
+            return res.status(400).json({error: 'Step data with this ID doesn\'t exist for this user!'});
+        }
+        pool.query('UPDATE steps SET step_count=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?', [req.body.steps, stepID, uid], (error, results2)=>{
+            if (error){
+                return res.status(500).json({error: 'Database query error'});
+            }
+            if (results2.affectedRows == 0){
+                return res.status(400).json({error: 'Step data with this ID doesn\'t exist for this user!'});
+            }
+            return res.status(200).json({message: 'Step data updated succesfully!'});
+        })
+    })
+})
 //delete steps
-
+app.delete('/steps/:stepID', (req, res) =>{})
 //ADMIN ENDPOINTS ---------------------------
 
 //get all users
