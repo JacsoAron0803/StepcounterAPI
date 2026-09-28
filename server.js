@@ -5,6 +5,7 @@ var sha1 = require('sha1');
 
 const app = express();
 const port = 3000;
+const pwdRegExp = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
 var pool = mysql.createPool({
     connectionLimit: 10,
     host: 'localhost',
@@ -35,6 +36,10 @@ app.post('/users/register', (req, res)=> {
         return res.status(400).json({error:'Passwords do not match'})
     }
     //TODO: check password strength
+    //regExp -> reg|ular exp|ression
+    if (!passwd.match(pwdRegExp)){
+        return res.status(400).json({error:'Password is too weak!'})
+    }
 
 
     //check if email already exists
@@ -107,7 +112,7 @@ app.post('/users/login', (req, res)=>{
 
 //password change
 app.post('/users/:uid/passmod', (req, res)=>{
-    const {oldpass, newpass, confirm, userID} = req.body; //frontendből átvesszük az adatokat
+    const {oldpass, newpass, confirm} = req.body; //frontendből átvesszük az adatokat
     const uid = req.params.uid; // kiolvassuk az urlbol a user ID-t
 
     //megnezzuk hogy minden kotelezo mezot megadott e
@@ -134,7 +139,7 @@ app.post('/users/:uid/passmod', (req, res)=>{
         }
 
         // ha nincs ilyen idju user
-        if (results.length ==0){
+        if (results.length == 0){
             return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
         }
             //hasheljuk a megadott jelenlegi jelszot hogy ossze tudjuk hasonlitani az adatbazisban levovel
@@ -151,6 +156,9 @@ app.post('/users/:uid/passmod', (req, res)=>{
         pool.query('UPDATE users SET password=SHA1(?) WHERE ID=?', [newpass, uid], (error, results)=>{
             if (error){
                 return res.status(500).json({error: 'Database query error'});
+            }
+            if (!newpass.match(pwdRegExp)){
+                return res.status(400).json({error:'Password is too weak!'})
             }
 
             return res.status(200).json({message: 'The password has been modified succesfully!'});
@@ -207,7 +215,7 @@ app.patch('/users/:uid', (req, res)=>{
             return res.status(500).json({error: 'Database query error'});
         }
 
-        if (results.length ==0){
+        if (results.length == 0){
             return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
         }
         //ha ugyanazok az adatok mint az adatbazisban, akkor nem csinalunk semmit
