@@ -346,7 +346,7 @@ app.patch('/steps/:uid/:stepID', (req, res)=>{
         if (results.length == 0){
             return res.status(400).json({error: 'Step data with this ID doesn\'t exist for this user!'});
         }
-        pool.query('UPDATE steps SET step_count=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?', [req.body.steps, stepID, uid], (error, results2)=>{
+        pool.query('UPDATE steps SET step_count=?, updated_at=CURRENT_TIMESTAMP WHERE ID=? AND user_id=?', [req.body.steps, stepID, uid], (error, results2)=>{
             if (error){
                 return res.status(500).json({error: 'Database query error'});
             }
@@ -368,7 +368,7 @@ app.delete('/steps/:stepID', (req, res) =>{
     if (luid != req.body.luid){
         return res.status(400).json({error: 'You are not authorized to delete this user\'s steps!'});
     }
-    pool.query('DELETE FROM steps WHERE id=? AND user_id=?', [stepID, luid], (error, results)=>{
+    pool.query('DELETE FROM steps WHERE ID=? AND user_id=?', [stepID, luid], (error, results)=>{
         if (error){
             return res.status(500).json({error: 'Database query error'});
         }
