@@ -1,20 +1,26 @@
+require('dotenv').config();
 const express = require('express');
 var cors = require('cors');
 const mysql = require('mysql');
 var sha1 = require('sha1');
 
+
 const app = express();
-const port = 3000;
+const port = process.env.APP_PORT;
 const pwdRegExp = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+
+//HARDCODED sensitive data
 var pool = mysql.createPool({
-    connectionLimit: 10,
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    port:'3307',
-    database: 'stepcounter',
-    timezone: 'Europe/Budapest'
+   connectionLimit:         process.env.DB_CONN_LIMIT,
+    multipleStatements:     process.env.DB_MULTI_QUERY,
+    host:                   process.env.DB_HOST,
+    user:                   process.env.DB_USER,
+    password:               process.env.DB_PASS,
+    port:                   process.env.DB_PORT,
+    database:               process.env.DB_NAME,
+    timezone:               process.env.DB_TIMEZONE
 });
+//middleware
 app.use(cors()); //::::acces control allow origin
 app.use(express.urlencoded({extended: true}))
 app.use(express.json());
@@ -462,6 +468,75 @@ app.patch('/admin/status', (req,res)=>{
     
 
 //statistics (total steps, avarage step)
+app.post('/admin/statistics', (req, res)=>{
+    const luid = req.body.luid;
+     if (!luid){
+        return res.status(400).json({error: 'Missing user ID!'});
+    }
+    pool.query('SELECT * FROM users WHERE ID=?', [luid], (error, results)=>{
+        if (error){
+            return res.status(500).json({error: 'Database query error'});
+        }
+
+        if (results.length == 0){
+            return res.status(400).json({error: 'User with this ID doesn\'t exist!'});
+        }
+
+        if (results[0].role != 'admin'){
+            return res.status(400).json({error: 'You are not authorized to perform this action!'});
+        }
+
+        //kigyűjtjük a statisztikai adatokat
+
+        //total steps
+        //avg steps
+        //top users - 3 user
+        /*
+            {
+                total: 123123, --> SUM()
+                avg: 123123124, --> AVG()
+                topusers: { --> LIMIT 0,3 ORDER BY sumstep DESC
+                    {
+                        name: 'Béla',
+                        email: 'bela@gmail.com',
+                        steps: 234234
+                    },
+                    {
+                        name: 'kotya',
+                        email: 'kotya@gmail.com',
+                        steps: 123123
+                    },
+                    {
+                        name: 'kornel',
+                        email: 'kornel@gmail.com',
+                        steps: 123213123
+                    }
+                }
+            }
+        */
+        pool.query(`SELECT
+                    COALESCE(SUM(step_count),0) as total,
+                    COALESCE( AVG(step_count),0) AS avg 
+            FROM steps;
+            SELECT
+                users.name,
+                users.email,
+               COALESCE(SUM(steps.step_count),0) AS steps
+            FROM users
+            INNER JOIN steps ON users.ID = steps.user_id
+            GROUP BY users.ID, users.name, users.email
+            ORDER BY steps DESC 
+            LIMIT 0,3
+            `, (error, results)=>{
+                if (error){
+                    return res.status(500).json({error: 'Database query error'});
+                }
+                console.log(results)
+                return res.status(200).json(results);
+            });
+    });
+})
+
 
 app.listen(port, ()=>{
     console.log(`Server is running on http://localhost:${port}`)
