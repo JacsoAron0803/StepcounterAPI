@@ -322,15 +322,13 @@ app.post('/steps', (req, res)=>{
 //get steps (user)
 app.get('/steps/:uid', (req, res)=>{
     const uid = req.params.uid;
-    const luid = req.body.luid;
+    const luid = req.query.luid;
     if (!uid){
         return res.status(400).json({error: 'Missing user ID!'});
     }
-    if (uid != luid){
-        return res.status(400).json({error: 'You are not authorized to view this user\'s steps!'});
-    }
+   
 
-    pool.query('SELECT * FROM steps WHERE user_id=? ORDER BY date DESC', [uid], (error, results)=>{
+    pool.query('SELECT ID, step_count, date FROM steps WHERE user_id=? ORDER BY date DESC', [uid], (error, results)=>{
         if (error){
             return res.status(500).json({error: 'Database query error'});
         }
@@ -353,7 +351,7 @@ app.patch('/steps/:uid/:stepID', (req, res)=>{
         return res.status(400).json({error: 'You are not authorized to update this user\'s steps!'});
     }
 
-    pool.query('SELECT * FROM steps WHERE ID=? AND user_id=?', [stepID, uid], (error, results)=>{
+    pool.query('SELECT ID, step_count, date FROM steps WHERE ID=? AND user_id=?', [stepID, uid], (error, results)=>{
         if (error){
             return res.status(500).json({error: 'Database query error'});
         }
@@ -372,27 +370,41 @@ app.patch('/steps/:uid/:stepID', (req, res)=>{
     })
 })
 //delete steps
-app.delete('/steps/:stepID', (req, res) =>{
+// delete steps
+app.delete('/steps/:stepID', (req, res) => {
+
     const luid = req.body.luid;
     const stepID = req.params.stepID;
 
-    if (!luid || !stepID){
-        return res.status(400).json({error: 'Missing required fields!'});
+    if (!luid || !stepID) {
+        return res.status(400).json({
+            error: 'Missing required fields!'
+        });
     }
-    if (luid != req.body.luid){
-        return res.status(400).json({error: 'You are not authorized to delete this user\'s steps!'});
-    }
-    pool.query('DELETE FROM steps WHERE ID=? AND user_id=?', [stepID, luid], (error, results)=>{
-        if (error){
-            return res.status(500).json({error: 'Database query error'});
-        }
-        if (results.affectedRows == 1){
-            return res.status(200).json({message: 'Step data deleted succesfully!'});
-        }
-        return res.status(400).json({error: 'No action occured!'})
 
-    })
-})
+    pool.query(
+        'DELETE FROM steps WHERE ID=? AND user_id=?',
+        [stepID, luid],
+        (error, results) => {
+
+            if (error) {
+                return res.status(500).json({
+                    error: 'Database query error'
+                });
+            }
+
+            if (results.affectedRows == 1) {
+                return res.status(200).json({
+                    message: 'Step data deleted successfully!'
+                });
+            }
+
+            return res.status(400).json({
+                error: 'No action occurred!'
+            });
+        }
+    );
+});
 //ADMIN ENDPOINTS ---------------------------
 
 //get all users
