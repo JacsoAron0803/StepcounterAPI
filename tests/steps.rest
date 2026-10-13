@@ -1,0 +1,36 @@
+###create step
+POST http://localhost:3000/steps
+Content-Type: application/json
+
+{
+    "luid": 1,
+    "steps":1200,
+    "date":"2026-10-12"
+
+}
+###get steps
+
+GET http://localhost:3000/steps/:uid
+Content-Type: application/json
+
+{
+    "uid": 1,
+    "luid":1
+
+}
+###update steps
+PATCH http://localhost:3000/steps/:uid/:stepID
+Content-Type: application/json
+
+{
+    "uid": 1,
+    "stepID":1
+
+}
+###delete steps
+DELETE http://localhost:3000/steps/:stepID
+Content-Type: application/json
+
+{
+    "stepID":1
+}

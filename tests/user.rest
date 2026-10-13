@@ -1,0 +1,63 @@
+###register
+POST http://localhost:3000/users/register
+Content-Type: application/json
+
+{
+    "name": "kis miska",
+    "email":"miska@gmail.com",
+    "passwd":"asd",
+    "confirm":"asd"
+
+}
+###login
+
+POST http://localhost:3000/users/login
+Content-Type: application/json
+
+{
+    "email":"miska@gmail.com",
+    "passwd":"asd"
+
+}
+###change passwd
+POST http://localhost:3000/users/:uid/passmod
+Content-Type: application/json
+
+{
+    "oldpass":"kismiska",
+    "newpass":"asd",
+    "confirm":"asd"
+
+}
+
+###get profile
+GET http://localhost:3000/users/:uid
+Content-Type: application/json
+
+{
+    "uid":4
+
+}
+
+###update profile
+
+PATCH http://localhost:3000/users/:uid
+Content-Type: application/json
+
+{
+    "uid":2,
+    "username":"miskaa",
+    "email":"miska@gmail.com",
+    "luid":2
+
+}
+
+###delete profile
+DELETE http://localhost:3000/users/:uid
+Content-Type: application/json
+
+{
+    "uid":1,
+    "loggedUserID":1
+
+}
